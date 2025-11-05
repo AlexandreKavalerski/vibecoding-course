@@ -1,36 +1,30 @@
 from fastapi import FastAPI
-import httpx
+
+from schemas.meal import ErrorResponse, RandomMealResponse
+from services.meal_service import fetch_random_meal_from_api
 
 app = FastAPI()
 
 
-@app.get("/random-meal")
-async def get_random_meal():
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://www.themealdb.com/api/json/v1/1/random.php"
-        )
+@app.get(
+    "/random-meal",
+    response_model=RandomMealResponse | ErrorResponse,
+    responses={
+        200: {
+            "description": "Random meal successfully retrieved",
+            "model": RandomMealResponse,
+        },
+        500: {
+            "description": "Error retrieving meal from external API",
+            "model": ErrorResponse,
+        },
+    },
+)
+def get_random_meal() -> RandomMealResponse | ErrorResponse:
+    """Endpoint that returns a random meal using the service layer.
 
-    if response.status_code != 200:
-        return {"error": "Falha ao carregar refeição aleatória"}
-
-    data = response.json()
-    meal = data["meals"][0]
-
-    return {
-        "nome": meal["strMeal"],
-        "ingredientes": [
-            ingrediente
-            for ingrediente in (
-                meal["strIngredient1"],
-                meal["strIngredient2"],
-                meal["strIngredient3"],
-            )
-            if ingrediente
-        ],
-        "instruções": [
-            instrução
-            for instrução in (meal["strInstructions"].splitlines()[:5])
-            if instrução
-        ],
-    }
+    Returns:
+        RandomMealResponse: A random meal with all ingredients and instructions
+        ErrorResponse: Error information if the request fails
+    """
+    return fetch_random_meal_from_api()
